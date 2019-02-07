@@ -3,18 +3,20 @@ import numpy as np
 import scipy
 from scipy.signal import convolve2d as conv2
 from matplotlib import pyplot  as plt
+from matplotlib.colors import ListedColormap, LinearSegmentedColormap
 
 def image_gradient(I, ksize, sigma):
     kx = np.array([[1,0,-1],[2,0,-2],[1,0,-1]])
-    ky = np.array([[1,2,1] ,[0,0,0], [-1,-2,-1]])
+    ky = np.transpose(kx)
     Igdx = conv2(I, kx, mode="same")
     Igdy = conv2(I, ky, mode="same")
     Ig = np.sqrt(np.add(np.square(Igdx), np.square(Igdy)))
-    H = np.atleast_2d(np.exp(-0.5*(np.arange(-ksize,ksize+1)/sigma)**2))
-    H = H / np.sum(H)
-    Ig = conv2(conv2(Ig, H, mode="same"), np.transpose(H), mode="same")
-    Igdx = conv2(Igdx, H, mode="same")
-    Igdy = conv2(Igdy, np.transpose(H), mode="same")
+    Hx = np.atleast_2d(np.exp(-0.5*(np.arange(-ksize,ksize+1)/sigma)**2))
+    Hx = Hx / np.sum(Hx)
+    Hy = np.transpose(Hx)
+    Ig = conv2(conv2(Ig, Hx, mode="same"), Hy, mode="same")
+    Igdx = conv2(Igdx, Hx, mode="same")
+    Igdy = conv2(Igdy, Hy, mode="same")
     return Ig, Igdx, Igdy
 
 def estimate_T(Jgdx, Jgdy, x, y, window_size):
@@ -37,16 +39,16 @@ def estimate_e(I, J, Jgdx, Jgdy, x, y, window_size):
     row_to = min(np.shape(Jgdx)[0], y + window_size[1])
     for col in range(col_from, col_to):
         for row in range(row_from, row_to):
-            e += (I[row,col]-J[row,col]) * np.array([[Jgdx[row,col]], [Jgdy[row,col]]])
+            e += (int(I[row,col])-J[row,col]) * np.array([[Jgdx[row,col]], [Jgdy[row,col]]])
     return e
 
 def estimate_d(I, J, x, y):
     Ig, _, _ = image_gradient(I, 6, 0.5)
     Jg, Jgdx, Jgdy = image_gradient(J, 6, 0.5)
-    #plt.figure("Ig"), plt.imshow(Ig)
-    #plt.figure("Jg"), plt.imshow(Jg)
-    #plt.figure("Jgdx"), plt.imshow(Jgdx)
-    #plt.figure("Jgdy"), plt.imshow(Jgdy)
+    plt.figure("Ig"), plt.imshow(Ig, cmap = 'gray')
+    plt.figure("Jg"), plt.imshow(Jg, cmap = 'gray')
+    plt.figure("Jgdx"), plt.imshow(Jgdx, cmap = gkr_col)
+    plt.figure("Jgdy"), plt.imshow(Jgdy, cmap = gkr_col)
     dtot = np.array([[0.0], [0.0]])
     xcoord = np.arange(0, np.shape(J)[0], 1)
     ycoord = np.arange(0, np.shape(J)[1], 1)
@@ -90,13 +92,22 @@ def harris(img, grad_ksize, grad_sigma, ksize, kappa):
             H[y, x] = t[0,0]*t[1,1] - t[0,1]*t[0,1] - 0.05*(t[0,0] + t[1,1])**2
     return H
 
-I = lab1.load_lab_image("chessboard_1.png").astype(np.float64)
-J = lab1.load_lab_image("chessboard_2.png").astype(np.float64)
 
-plt.figure("I"), plt.imshow(I)
-plt.figure("J"), plt.imshow(J)
+# Green-black-red color map for gradients
+gkr_col = np.zeros((255, 4))
+gkr_col[:,3] = 1
+gkr_col[:127,1] = np.linspace(1.0, 0.0, 127, False)
+gkr_col[127:,0] = np.linspace(0.0, 1.0, 128, True)
+gkr_col = ListedColormap(gkr_col)
 
-#d = estimate_d(I, J, 388, 311)
+
+I = lab1.load_lab_image("chessboard_1.png")
+J = lab1.load_lab_image("chessboard_2.png")
+
+plt.figure("I"), plt.imshow(I, cmap='gray', vmin = 0, vmax = 255)
+plt.figure("J"), plt.imshow(J, cmap='gray', vmin = 0, vmax = 255)
+
+d = estimate_d(I, J, 388, 311)
 
 #print(d)
 
@@ -105,8 +116,8 @@ HH = H > np.amax(H) * 0.2
 HH_max = scipy.signal.order_filter(HH, np.ones((3, 3)), 9-1)
 [row, col] = np.nonzero(HH == HH_max)
 
-plt.figure("H"), plt.imshow(H)
-plt.figure("HH"), plt.imshow(HH)
+plt.figure("H"), plt.imshow(H, cmap='gray')
+plt.figure("HH"), plt.imshow(HH, cmap='gray')
 
 print(np.array([row, col]))
 
