@@ -6,17 +6,13 @@ from matplotlib import pyplot  as plt
 from matplotlib.colors import ListedColormap, LinearSegmentedColormap
 
 def image_gradient(I, ksize, sigma):
-    kx = np.array([[1,0,-1],[2,0,-2],[1,0,-1]])
-    ky = np.transpose(kx)
-    Igdx = conv2(I, kx, mode="same")
-    Igdy = conv2(I, ky, mode="same")
-    Ig = np.sqrt(np.add(np.square(Igdx), np.square(Igdy)))
-    Hx = np.atleast_2d(np.exp(-0.5*(np.arange(-ksize,ksize+1)/sigma)**2))
-    Hx = Hx / np.sum(Hx)
-    Hy = np.transpose(Hx)
-    Ig = conv2(conv2(Ig, Hx, mode="same"), Hy, mode="same")
-    Igdx = conv2(Igdx, Hx, mode="same")
-    Igdy = conv2(Igdy, Hy, mode="same")
+    lp = np.atleast_2d(np.exp(-0.5*(np.arange(-ksize,ksize+1)/sigma)**2))
+    lp = lp / np.sum(lp)
+    df = np.atleast_2d(-1.0/np.square(sigma) * np.arange(-ksize,ksize+1) * lp)
+
+    Ig = conv2(conv2(I, lp, mode="same"), lp.T, mode="same")
+    Igdx = conv2(Ig, df, mode="same")
+    Igdy = conv2(Ig, df.T, mode="same")
     return Ig, Igdx, Igdy
 
 def estimate_T(Jgdx, Jgdy, x, y, window_size):
@@ -31,42 +27,42 @@ def estimate_T(Jgdx, Jgdy, x, y, window_size):
     T[1,1] = np.sum(np.square(Jgdy[row_from:row_to,col_from:col_to]))
     return T
 
-def estimate_e(I, J, Jgdx, Jgdy, x, y, window_size):
+def estimate_e(Ig, Jg, Jgdx, Jgdy, x, y, window_size):
     e = np.zeros((2,1))
     col_from = max(0, x - window_size[0] // 2)
     col_to = min(np.shape(Jgdx)[1], x + (window_size[0] - 1) // 2)
     row_from = max(0, y - window_size[1] // 2)
     row_to = min(np.shape(Jgdy)[0], y + (window_size[1] - 1) // 2)
     
-    ij = I[row_from:row_to,col_from:col_to].astype(int) - J[row_from:row_to,col_from:col_to]
+    ij = Ig[row_from:row_to,col_from:col_to].astype(int) - Jg[row_from:row_to,col_from:col_to]
 
     e[0] = np.sum(np.multiply(ij, Jgdx[row_from:row_to,col_from:col_to]))
     e[1] = np.sum(np.multiply(ij, Jgdy[row_from:row_to,col_from:col_to]))
     return e
 
 def estimate_d(I, J, x, y, window_size):
-    #Ig, _, _ = image_gradient(I, 6, 0.5)
-    #plt.figure("Ig"), plt.imshow(Ig, cmap = 'gray')
+    Ig, _, _ = image_gradient(I, 6, 0.5)
+    plt.figure("Ig"), plt.imshow(Ig, cmap = 'gray')
     Jg, Jgdx, Jgdy = image_gradient(J, 6, 0.5)
-    #plt.figure("Jg"), plt.imshow(Jg, cmap = 'gray')
-    #plt.figure("Jgdx"), plt.imshow(Jgdx, cmap = gkr_col)
-    #plt.figure("Jgdy"), plt.imshow(Jgdy, cmap = gkr_col)
+    plt.figure("Jg"), plt.imshow(Jg, cmap = 'gray')
+    plt.figure("Jgdx"), plt.imshow(Jgdx, vmin = -100, vmax = 100, cmap = gkr_col)
+    plt.figure("Jgdy"), plt.imshow(Jgdy, vmin = -100, vmax = 100, cmap = gkr_col)
     dtot = np.zeros((2, 1))
-    xcoords = np.arange(0, np.shape(J)[0], 1)
-    ycoords = np.arange(0, np.shape(J)[1], 1)
+    xcoords = np.arange(0, np.shape(Jg)[0])
+    ycoords = np.arange(0, np.shape(Jg)[1])
     width = np.shape(J)[1]
     height = np.shape(J)[0]
-    Jd = J
+    Jgd = Jg
     Jgdxd = Jgdx
     Jgdyd = Jgdy
     for _ in range(100):
         T = estimate_T(Jgdxd, Jgdyd, x, y, window_size)
-        e = estimate_e(I, Jd, Jgdxd, Jgdyd, x, y, window_size)
+        e = estimate_e(Ig, Jgd, Jgdxd, Jgdyd, x, y, window_size)
         d = np.linalg.solve(T, e)
         dtot = dtot + d
         if np.linalg.norm(d) < 0.01:
             break
-        Jd = scipy.interpolate.RectBivariateSpline(xcoords, ycoords, J)(
+        Jgd = scipy.interpolate.RectBivariateSpline(xcoords, ycoords, Jg)(
             np.arange(dtot[1], height + dtot[1]),
             np.arange(dtot[0], width + dtot[0]), grid=True)
         Jgdxd = scipy.interpolate.RectBivariateSpline(xcoords, ycoords, Jgdx)(
@@ -108,8 +104,8 @@ J = lab1.load_lab_image("chessboard_2.png")
 plt.figure("I"), plt.imshow(I, cmap='gray', vmin = 0, vmax = 255)
 plt.figure("J"), plt.imshow(J, cmap='gray', vmin = 0, vmax = 255)
 
-#d = estimate_d(I, J, 388, 311, (40, 70))
-#print(d)
+d = estimate_d(I, J, 388, 311, (40, 70))
+print(d)
 
 H = harris(I, 6, 0.5, 3, 0.05)
 HH = H > np.amax(H) * 0.2
@@ -119,6 +115,6 @@ HH_max = scipy.signal.order_filter(HH, np.ones((3, 3)), 9-1)
 plt.figure("H"), plt.imshow(H, cmap='gray')
 plt.figure("HH"), plt.imshow(HH, cmap='gray')
 
-print(np.array([row, col]))
+#print(np.array([row, col]))
 
 plt.show()
