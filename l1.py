@@ -38,7 +38,7 @@ def estimate_e(Ig, Jg, Jgdx, Jgdy, x, y, window_size):
     e[1] = np.sum(np.multiply(ij, Jgdy[row_from:row_to,col_from:col_to]))
     return e
 
-def estimate_d(I, J, x, y, window_size):
+def estimate_d(I, J, x, y, window_size, maxIter=100):
     Ig, _, _ = image_gradient(I, 6, 0.5)
     #plt.figure("Ig"), plt.imshow(Ig, cmap = 'gray')
     Jg, Jgdx, Jgdy = image_gradient(J, 6, 0.5)
@@ -53,12 +53,12 @@ def estimate_d(I, J, x, y, window_size):
     Jgd = Jg
     Jgdxd = Jgdx
     Jgdyd = Jgdy
-    for _ in range(100):
+    for _ in range(maxIter):
         T = estimate_T(Jgdxd, Jgdyd, x, y, window_size)
         e = estimate_e(Ig, Jgd, Jgdxd, Jgdyd, x, y, window_size)
         d = np.linalg.solve(T, e)
         dtot = dtot + d
-        if np.linalg.norm(d) < 0.1:
+        if np.linalg.norm(d) < 0.01:
             break
         Jgd = scipy.interpolate.RectBivariateSpline(xcoords, ycoords, Jg)(
             np.arange(dtot[1], height + dtot[1]),
@@ -93,6 +93,12 @@ gkr_col[:,3] = 1
 gkr_col[:127,1] = np.linspace(1.0, 0.0, 127, False)
 gkr_col[127:,0] = np.linspace(0.0, 1.0, 128, True)
 gkr_col = ListedColormap(gkr_col)
+
+I, J, dTrue = lab1.get_cameraman()
+d = estimate_d(I, J, 120, 85, (40, 70), 2)
+print("Estimate d = ", d)
+print("True d = ", dTrue)
+
 
 I = lab1.load_lab_image("chessboard_1.png")
 size = np.shape(I)
