@@ -44,7 +44,7 @@ def estimate_e(I, J, Jgdx, Jgdy, x, y, window_size):
     e[1] = np.sum(np.multiply(ij, Jgdy[row_from:row_to,col_from:col_to]))
     return e
 
-def estimate_d(I, J, x, y):
+def estimate_d(I, J, x, y, window_size):
     #Ig, _, _ = image_gradient(I, 6, 0.5)
     #plt.figure("Ig"), plt.imshow(Ig, cmap = 'gray')
     Jg, Jgdx, Jgdy = image_gradient(J, 6, 0.5)
@@ -59,10 +59,9 @@ def estimate_d(I, J, x, y):
     Jd = J
     Jgdxd = Jgdx
     Jgdyd = Jgdy
-    window = (70, 40)
     for _ in range(100):
-        T = estimate_T(Jgdxd, Jgdyd, x, y, window)
-        e = estimate_e(I, Jd, Jgdxd, Jgdyd, x, y, window)
+        T = estimate_T(Jgdxd, Jgdyd, x, y, window_size)
+        e = estimate_e(I, Jd, Jgdxd, Jgdyd, x, y, window_size)
         d = np.linalg.solve(T, e)
         dtot = dtot + d
         if np.linalg.norm(d) < 0.01:
@@ -87,11 +86,11 @@ def orientation_tensor(img, grad_ksize, grad_sigma, window_size):
     return T
 
 def harris(img, grad_ksize, grad_sigma, ksize, kappa):
-    T = orientation_tensor(img, grad_ksize, grad_sigma, (3,3))
+    T = orientation_tensor(img, grad_ksize, grad_sigma, (ksize,ksize))
     H = np.empty(np.shape(img))
     
     # H = T11*T22 - T12^2 - k(T11 + T22)^2
-    H[:,:] = T[:,:,0,0]*T[:,:,1,1] - T[:,:,0,1]**2 - 0.05*(T[:,:,0,0] + T[:,:,1,1])**2
+    H[:,:] = T[:,:,0,0]*T[:,:,1,1] - T[:,:,0,1]**2 - kappa*(T[:,:,0,0] + T[:,:,1,1])**2
     return H
 
 
@@ -109,11 +108,10 @@ J = lab1.load_lab_image("chessboard_2.png")
 plt.figure("I"), plt.imshow(I, cmap='gray', vmin = 0, vmax = 255)
 plt.figure("J"), plt.imshow(J, cmap='gray', vmin = 0, vmax = 255)
 
-#d = estimate_d(I, J, 388, 311)
-
+#d = estimate_d(I, J, 388, 311, (40, 70))
 #print(d)
 
-H = harris(I, 6, 0.5, 1, 1)
+H = harris(I, 6, 0.5, 3, 0.05)
 HH = H > np.amax(H) * 0.2
 HH_max = scipy.signal.order_filter(HH, np.ones((3, 3)), 9-1)
 [row, col] = np.nonzero(HH == HH_max)
