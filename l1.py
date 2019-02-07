@@ -20,58 +20,62 @@ def image_gradient(I, ksize, sigma):
     return Ig, Igdx, Igdy
 
 def estimate_T(Jgdx, Jgdy, x, y, window_size):
-    T = np.array([[0.0,0.0], [0.0,0.0]])
-    col_from = max(0, x - window_size[0])
-    col_to = min(np.shape(Jgdx)[1], x + window_size[0])
-    row_from = max(0, y - window_size[1])
-    row_to = min(np.shape(Jgdx)[0], y + window_size[1])
-    for col in range(col_from, col_to):
-        for row in range(row_from, row_to):
-            T += np.array([[Jgdx[row,col]*Jgdx[row,col],Jgdx[row,col]*Jgdy[row,col]],
-                           [Jgdx[row,col]*Jgdy[row,col],Jgdy[row,col]*Jgdy[row,col]]])
+    T = np.zeros((2,2))
+    col_from = max(0, x - window_size[0] // 2)
+    col_to = min(np.shape(Jgdx)[1], x + (window_size[0] - 1) // 2)
+    row_from = max(0, y - window_size[1] // 2)
+    row_to = min(np.shape(Jgdy)[0], y + (window_size[1] - 1) // 2)
+    T[0,0] = np.sum(np.square(Jgdx[row_from:row_to,col_from:col_to]))
+    T[0,1] = np.sum(np.multiply(Jgdx[row_from:row_to,col_from:col_to],Jgdy[row_from:row_to,col_from:col_to]))
+    T[1,0] = T[0,1]
+    T[1,1] = np.sum(np.square(Jgdy[row_from:row_to,col_from:col_to]))
     return T
 
 def estimate_e(I, J, Jgdx, Jgdy, x, y, window_size):
-    e = np.array([[0.0], [0.0]])
-    col_from = max(0, x - window_size[0])
-    col_to = min(np.shape(Jgdx)[1], x + window_size[0])
-    row_from = max(0, y - window_size[1])
-    row_to = min(np.shape(Jgdx)[0], y + window_size[1])
-    for col in range(col_from, col_to):
-        for row in range(row_from, row_to):
-            e += (int(I[row,col])-J[row,col]) * np.array([[Jgdx[row,col]], [Jgdy[row,col]]])
+    e = np.zeros((2,1))
+    col_from = max(0, x - window_size[0] // 2)
+    col_to = min(np.shape(Jgdx)[1], x + (window_size[0] - 1) // 2)
+    row_from = max(0, y - window_size[1] // 2)
+    row_to = min(np.shape(Jgdy)[0], y + (window_size[1] - 1) // 2)
+    
+    ij = I[row_from:row_to,col_from:col_to].astype(int) - J[row_from:row_to,col_from:col_to]
+
+    e[0] = np.sum(np.multiply(ij, Jgdx[row_from:row_to,col_from:col_to]))
+    e[1] = np.sum(np.multiply(ij, Jgdy[row_from:row_to,col_from:col_to]))
     return e
 
 def estimate_d(I, J, x, y):
-    Ig, _, _ = image_gradient(I, 6, 0.5)
+    #Ig, _, _ = image_gradient(I, 6, 0.5)
+    #plt.figure("Ig"), plt.imshow(Ig, cmap = 'gray')
     Jg, Jgdx, Jgdy = image_gradient(J, 6, 0.5)
-    plt.figure("Ig"), plt.imshow(Ig, cmap = 'gray')
-    plt.figure("Jg"), plt.imshow(Jg, cmap = 'gray')
-    plt.figure("Jgdx"), plt.imshow(Jgdx, cmap = gkr_col)
-    plt.figure("Jgdy"), plt.imshow(Jgdy, cmap = gkr_col)
-    dtot = np.array([[0.0], [0.0]])
-    xcoord = np.arange(0, np.shape(J)[0], 1)
-    ycoord = np.arange(0, np.shape(J)[1], 1)
+    #plt.figure("Jg"), plt.imshow(Jg, cmap = 'gray')
+    #plt.figure("Jgdx"), plt.imshow(Jgdx, cmap = gkr_col)
+    #plt.figure("Jgdy"), plt.imshow(Jgdy, cmap = gkr_col)
+    dtot = np.zeros((2, 1))
+    xcoords = np.arange(0, np.shape(J)[0], 1)
+    ycoords = np.arange(0, np.shape(J)[1], 1)
+    width = np.shape(J)[1]
+    height = np.shape(J)[0]
     Jd = J
     Jgdxd = Jgdx
     Jgdyd = Jgdy
+    window = (70, 40)
     for _ in range(100):
-        T = estimate_T(Jgdxd, Jgdyd, x, y, (35, 20))
-        e = estimate_e(I, Jd, Jgdxd, Jgdyd, x, y, (35, 20))
+        T = estimate_T(Jgdxd, Jgdyd, x, y, window)
+        e = estimate_e(I, Jd, Jgdxd, Jgdyd, x, y, window)
         d = np.linalg.solve(T, e)
         dtot = dtot + d
         if np.linalg.norm(d) < 0.01:
             break
-        Jd = scipy.interpolate.RectBivariateSpline(xcoord, ycoord, J)(
-            np.arange(dtot[1], np.shape(J)[0] + dtot[1], 1),
-            np.arange(dtot[0], np.shape(J)[1]+ dtot[0], 1), grid=True)
-        Jgdxd = scipy.interpolate.RectBivariateSpline(xcoord, ycoord, Jgdx)(
-            np.arange(dtot[1], np.shape(J)[0] + dtot[1], 1),
-            np.arange(dtot[0], np.shape(J)[1]+ dtot[0], 1), grid=True)
-        Jgdyd = scipy.interpolate.RectBivariateSpline(xcoord, ycoord, Jgdy)(
-            np.arange(dtot[1], np.shape(J)[0] + dtot[1], 1),
-            np.arange(dtot[0], np.shape(J)[1]+ dtot[0], 1), grid=True)
-
+        Jd = scipy.interpolate.RectBivariateSpline(xcoords, ycoords, J)(
+            np.arange(dtot[1], height + dtot[1]),
+            np.arange(dtot[0], width + dtot[0]), grid=True)
+        Jgdxd = scipy.interpolate.RectBivariateSpline(xcoords, ycoords, Jgdx)(
+            np.arange(dtot[1], height + dtot[1]),
+            np.arange(dtot[0], width + dtot[0]), grid=True)
+        Jgdyd = scipy.interpolate.RectBivariateSpline(xcoords, ycoords, Jgdy)(
+            np.arange(dtot[1], height + dtot[1]),
+            np.arange(dtot[0], width + dtot[0]), grid=True)
     return dtot
 
 def orientation_tensor(img, grad_ksize, grad_sigma, window_size):
@@ -81,15 +85,13 @@ def orientation_tensor(img, grad_ksize, grad_sigma, window_size):
         for y in range(np.shape(img)[0]):
             T[y, x,:,:] = estimate_T(dx, dy, x, y, window_size)
     return T
-    #H = np.fromfunction(lambda x,y : T(x,y)(1, 1)*, np.shape(img))
 
 def harris(img, grad_ksize, grad_sigma, ksize, kappa):
-    T = orientation_tensor(img, grad_ksize, grad_sigma, (1,1))
+    T = orientation_tensor(img, grad_ksize, grad_sigma, (3,3))
     H = np.empty(np.shape(img))
-    for x in range(np.shape(img)[1]):
-        for y in range(np.shape(img)[0]):
-            t = T[y,x,:,:]
-            H[y, x] = t[0,0]*t[1,1] - t[0,1]*t[0,1] - 0.05*(t[0,0] + t[1,1])**2
+    
+    # H = T11*T22 - T12^2 - k(T11 + T22)^2
+    H[:,:] = T[:,:,0,0]*T[:,:,1,1] - T[:,:,0,1]**2 - 0.05*(T[:,:,0,0] + T[:,:,1,1])**2
     return H
 
 
@@ -107,7 +109,7 @@ J = lab1.load_lab_image("chessboard_2.png")
 plt.figure("I"), plt.imshow(I, cmap='gray', vmin = 0, vmax = 255)
 plt.figure("J"), plt.imshow(J, cmap='gray', vmin = 0, vmax = 255)
 
-d = estimate_d(I, J, 388, 311)
+#d = estimate_d(I, J, 388, 311)
 
 #print(d)
 
