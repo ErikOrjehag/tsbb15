@@ -18,9 +18,9 @@ def image_gradient(I, ksize, sigma):
 def estimate_T(Jgdx, Jgdy, x, y, window_size):
     T = np.zeros((2,2))
     col_from = max(0, x - window_size[0] // 2)
-    col_to = min(np.shape(Jgdx)[1], x + (window_size[0] - 1) // 2)
+    col_to = min(np.shape(Jgdx)[1], x + int((window_size[0] - 1) / 2))
     row_from = max(0, y - window_size[1] // 2)
-    row_to = min(np.shape(Jgdy)[0], y + (window_size[1] - 1) // 2)
+    row_to = min(np.shape(Jgdy)[0], y + int((window_size[1] - 1) / 2))
     T[0,0] = np.sum(np.square(Jgdx[row_from:row_to,col_from:col_to]))
     T[0,1] = np.sum(np.multiply(Jgdx[row_from:row_to,col_from:col_to],Jgdy[row_from:row_to,col_from:col_to]))
     T[1,0] = T[0,1]
@@ -30,9 +30,9 @@ def estimate_T(Jgdx, Jgdy, x, y, window_size):
 def estimate_e(Ig, Jg, Jgdx, Jgdy, x, y, window_size):
     e = np.zeros((2,1))
     col_from = max(0, x - window_size[0] // 2)
-    col_to = min(np.shape(Jgdx)[1], x + (window_size[0] - 1) // 2)
+    col_to = min(np.shape(Jgdx)[1], x + int((window_size[0] - 1) / 2))
     row_from = max(0, y - window_size[1] // 2)
-    row_to = min(np.shape(Jgdy)[0], y + (window_size[1] - 1) // 2)
+    row_to = min(np.shape(Jgdy)[0], y + int((window_size[1] - 1) / 2))
     
     ij = Ig[row_from:row_to,col_from:col_to].astype(int) - Jg[row_from:row_to,col_from:col_to]
 
