@@ -104,18 +104,20 @@ mask = (H > np.amax(H) * 0.3)
 H = H * mask
 H_max = scipy.signal.order_filter(H, np.ones((3, 3)), 9-1)
 [row, col] = np.nonzero((H == H_max)*mask)
-trackers = list(zip(col, row))
-trackers.sort(key = lambda p: (p[0]-size[1]/2)**2 + (p[1]-size[0]/2)**2)
-trackers = np.array(trackers[0:5])
+
+mask = np.zeros(np.shape(H))
+H_track = np.zeros(np.shape(H))
+H_track[row,col] = H_max[row,col]
+mask[100:-100,100:-100] = 1
+H_track = H_track * mask
+[row, col] = np.unravel_index(np.argpartition(H_track, -5, None)[-5:], np.shape(H_track))
+trackers = np.array(list(zip(col, row)))
 
 print(trackers)
 
-H_bin = np.zeros(np.shape(H))
-H_bin[row,col] = 1
-
 plt.figure("H"), plt.imshow(H, cmap='gray')
 plt.figure("H_max"), plt.imshow(H_max, cmap='gray')
-plt.figure("H_bin"), plt.imshow(H_bin, cmap='gray')
+plt.figure("H_track"), plt.imshow(H_track, cmap='gray')
 
 window = 30
 
@@ -124,15 +126,17 @@ ax.imshow(I, cmap='gray')
 for tracker in trackers:
     ax.add_patch(Circle(tuple(tracker), window/2, fill=False, edgecolor='red', linewidth=1))
 
+_, ax = plt.subplots(3, 3, num="J2-J10")
+ax = ax.flatten()
+
 for i in range(2, 11):
     J = lab1.load_lab_image("chessboard_%d.png" % i)
-    _, ax = plt.subplots(1, num="J%d" % i)
-    ax.imshow(J, cmap='gray')
+    ax[i-2].imshow(J, cmap='gray')
     for tracker in trackers:
         d = estimate_d(I, J, tracker[0], tracker[1], (window, window))
         tracker[0] = np.round(tracker[0] + d[0])
         tracker[1] = np.round(tracker[1] + d[1])
-        ax.add_patch(Circle(tuple(tracker), window/2, fill=False, edgecolor='red', linewidth=1))
+        ax[i-2].add_patch(Circle(tuple(tracker), window/2, fill=False, edgecolor='red', linewidth=1))
     I = J
 
 plt.show()
