@@ -58,14 +58,16 @@ gkr_col[127:,0] = np.linspace(0.0, 1.0, 128, True)
 gkr_col = ListedColormap(gkr_col)
 
 I, J, dTrue = lab1.get_cameraman()
-d = LK_equation(I, J, (40, 70))
-print("Estimate d = ", d[120,85,:])
+d = LK_equation(I, J, (70, 40))
+print("Estimate d = ", d[85,120,:])
 print("True d = ", dTrue)
 
 I = lab1.load_lab_image("chessboard_1.png")
 J = lab1.load_lab_image("chessboard_2.png")
-d = LK_equation(I, J, (40, 40))
+d = LK_equation(I, J, (20, 20))
 plt.figure("X"), plt.imshow(d[:,:,0], cmap='gray')
 plt.figure("Y"), plt.imshow(d[:,:,1], cmap='gray')
+
+lab2.gopimage(d)
 
 plt.show()
