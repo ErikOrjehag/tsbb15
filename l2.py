@@ -22,28 +22,28 @@ def estimate_Z(Gdx, Gdy, window_size):
     Gdx2 = np.square(Gdx)
     Gdxy = np.multiply(Gdx, Gdy)
     Gdy2 = np.square(Gdy)
-    filter = np.ones(window_size) / np.array(window_size).size
+    filter = np.ones(window_size)
     Z = np.empty(np.shape(Gdx) + (2, 2))
-    Z[:,:,0,0] = conv2(Gdx2, filter, mode="same")
-    Z[:,:,0,1] = conv2(Gdxy, filter, mode="same")
-    Z[:,:,1,0] = Z[:,:,0,1]
-    Z[:,:,1,1] = conv2(Gdy2, filter, mode="same")
+    Z[...,0,0] = conv2(Gdx2, filter, mode="same")
+    Z[...,0,1] = conv2(Gdxy, filter, mode="same")
+    Z[...,1,0] = Z[:,:,0,1]
+    Z[...,1,1] = conv2(Gdy2, filter, mode="same")
     return Z
 
 def estimate_e(Ig, Jg, Gdx, Gdy, window_size):
     e = np.empty(np.shape(Gdx) + (2,))
-    filter = np.ones(window_size) / np.array(window_size).size
+    filter = np.ones(window_size)
     ij = Ig - Jg
-    e[:,:,0] = conv2(np.multiply(ij, Gdx), filter, mode="same")
-    e[:,:,1] = conv2(np.multiply(ij, Gdy), filter, mode="same")
+    e[...,0] = conv2(np.multiply(ij, Gdx), filter, mode="same")
+    e[...,1] = conv2(np.multiply(ij, Gdy), filter, mode="same")
     return e
 
 def LK_equation(I, J, window_size):
-    #plt.figure("Ig"), plt.imshow(Ig, cmap = 'gray')
     Ig, Jg, Gdx, Gdy = image_gradient(I, J, 6, 0.5)
+    #plt.figure("Ig"), plt.imshow(Ig, cmap = 'gray')
     #plt.figure("Jg"), plt.imshow(Jg, cmap = 'gray')
-    #plt.figure("Jgdx"), plt.imshow(Jgdx, vmin = -100, vmax = 100, cmap = gkr_col)
-    #plt.figure("Jgdy"), plt.imshow(Jgdy, vmin = -100, vmax = 100, cmap = gkr_col)
+    #plt.figure("Gdx"), plt.imshow(Gdx, vmin = -100, vmax = 100, cmap = gkr_col)
+    #plt.figure("Gdy"), plt.imshow(Gdy, vmin = -100, vmax = 100, cmap = gkr_col)
     Z = estimate_Z(Gdx, Gdy, window_size)
     e = estimate_e(Ig, Jg, Gdx, Gdy, window_size)
     d = np.linalg.solve(Z, e)
@@ -65,8 +65,8 @@ print("True d = ", dTrue)
 I = lab1.load_lab_image("chessboard_1.png")
 J = lab1.load_lab_image("chessboard_2.png")
 d = LK_equation(I, J, (20, 20))
-plt.figure("X"), plt.imshow(d[:,:,0], cmap='gray')
-plt.figure("Y"), plt.imshow(d[:,:,1], cmap='gray')
+plt.figure("X"), plt.imshow(d[...,0], cmap='gray')
+plt.figure("Y"), plt.imshow(d[...,1], cmap='gray')
 
 lab2.gopimage(d)
 
