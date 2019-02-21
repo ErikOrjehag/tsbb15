@@ -26,7 +26,7 @@ def estimate_Z(Gdx, Gdy, window_size):
     Z = np.empty(np.shape(Gdx) + (2, 2))
     Z[...,0,0] = conv2(Gdx2, window, mode="same")
     Z[...,0,1] = conv2(Gdxy, window, mode="same")
-    Z[...,1,0] = Z[:,:,0,1]
+    Z[...,1,0] = Z[...,0,1]
     Z[...,1,1] = conv2(Gdy2, window, mode="same")
     return Z
 
@@ -51,7 +51,7 @@ def LK_equation(I, J, window_size, ksize, sigma):
 
 def LK_equation_multiscale(I, J, window_size, ksize, sigma, number_of_scales=1):
     dtot = np.zeros(np.shape(I) + (2,))
-    
+
     width = np.shape(J)[1]
     height = np.shape(J)[0]
     xcoords = np.arange(0, width)
@@ -59,23 +59,26 @@ def LK_equation_multiscale(I, J, window_size, ksize, sigma, number_of_scales=1):
     Iinterpol = scipy.interpolate.RectBivariateSpline(ycoords, xcoords, I)
     Jinterpol = scipy.interpolate.RectBivariateSpline(ycoords, xcoords, J)
     mg = np.array(np.meshgrid(xcoords, ycoords)).reshape(2,-1)
-    
+
     Id = I
     Jd = J
-    
+
     for n in range(number_of_scales, 0, -1):
         sc = 2 ** (n-1)
-        
+
         d = LK_equation(Id, Jd, window_size * sc, ksize*sc, sigma)
         dtot += d
-        
+
         dtot[...,0] = scipy.signal.medfilt(dtot[...,0], 5)
         dtot[...,1] = scipy.signal.medfilt(dtot[...,1], 5)
-        
+
+        plt.figure(n), plt.imshow(np.abs(Jd-Id), cmap='gray')
+
+
         if n > 1:
-            Icoords = np.array([mg[0] - dtot[...,0].flatten()/2, mg[1] - dtot[...,1].flatten()/2]) 
+            Icoords = np.array([mg[0] - dtot[...,0].flatten()/2, mg[1] - dtot[...,1].flatten()/2])
             Jcoords = np.array([mg[0] + dtot[...,0].flatten()/2, mg[1] + dtot[...,1].flatten()/2])
-            
+
             Id = Jinterpol(Icoords[1], Icoords[0], grid=False).reshape(np.shape(I))
             Jd = Iinterpol(Jcoords[1], Jcoords[0], grid=False).reshape(np.shape(J))
     return dtot
@@ -92,11 +95,12 @@ gkr_col = ListedColormap(gkr_col)
 #print("Estimate d = ", d[85,120,:])
 #print("True d = ", dTrue)
 
-#I = lab2.load_image_grayscale("images/forwardL0.png")
-#J = lab2.load_image_grayscale("images/forwardL1.png")
-
-I = lab2.load_image_grayscale("images/SCcar4_00070.bmp")
-J = lab2.load_image_grayscale("images/SCcar4_00071.bmp")
+I = lab2.load_image_grayscale("images/forwardL0.png")
+J = lab2.load_image_grayscale("images/forwardL1.png")
+#d = LK_equation(I, J, (40, 40), 6, 1)
+#
+#I = lab2.load_image_grayscale("images/SCcar4_00070.bmp")
+#J = lab2.load_image_grayscale("images/SCcar4_00071.bmp")
 d = LK_equation_multiscale(I, J, np.array([15, 15]), 5, 1, 4)
 plt.figure("X"), plt.imshow(d[...,0], vmin = -10, vmax = 10, cmap=gkr_col)
 plt.figure("Y"), plt.imshow(d[...,1], vmin = -10, vmax = 10, cmap=gkr_col)
@@ -113,17 +117,20 @@ Iinterpol = scipy.interpolate.RectBivariateSpline(ycoords, xcoords, I)
 Jinterpol = scipy.interpolate.RectBivariateSpline(ycoords, xcoords, J)
 
 mg = np.array(np.meshgrid(xcoords, ycoords)).reshape(2,-1)
-Icoords = np.array([mg[0] - d[...,0].flatten()/2, mg[1] - d[...,1].flatten()/2]) 
+Icoords = np.array([mg[0] - d[...,0].flatten()/2, mg[1] - d[...,1].flatten()/2])
 Jcoords = np.array([mg[0] + d[...,0].flatten()/2, mg[1] + d[...,1].flatten()/2])
 
 Id = Jinterpol(Icoords[1], Icoords[0], grid=False).reshape(np.shape(I))
 Jd = Iinterpol(Jcoords[1], Jcoords[0], grid=False).reshape(np.shape(J))
 
 
-plt.figure("I"), plt.imshow(I, cmap='gray')
+lab2.image_grid({"I": I, "J": J}, share_all=True, imshow_opts={'cmap':'gray'})
+#plt.figure("I"), plt.imshow(I, cmap='gray')
 #plt.figure("J"), plt.imshow(J, cmap='gray')
 #plt.figure("Id"), plt.imshow(Id, cmap='gray')
 #plt.figure("Jd"), plt.imshow(Jd, cmap='gray')
+
+plt.figure("Jd"), plt.imshow(np.abs(Jd-Id), cmap='gray')
 
 print("|J-I| = ", np.linalg.norm(J[30:-30,30:-30]-I[30:-30,30:-30]))
 print("|Jd-Id| = ", np.linalg.norm(Jd[30:-30,30:-30]-Id[30:-30,30:-30]))
