@@ -46,10 +46,10 @@ def estimate_d(I, J, x, y, window_size, maxIter=100):
     #plt.figure("Jgdx"), plt.imshow(Jgdx, vmin = -100, vmax = 100, cmap = gkr_col)
     #plt.figure("Jgdy"), plt.imshow(Jgdy, vmin = -100, vmax = 100, cmap = gkr_col)
     dtot = np.zeros((2, 1))
-    xcoords = np.arange(0, np.shape(Jg)[0])
-    ycoords = np.arange(0, np.shape(Jg)[1])
     width = np.shape(J)[1]
     height = np.shape(J)[0]
+    xcoords = np.arange(0, width)
+    ycoords = np.arange(0, height)
     Jgd = Jg
     Jgdxd = Jgdx
     Jgdyd = Jgdy
@@ -60,7 +60,7 @@ def estimate_d(I, J, x, y, window_size, maxIter=100):
         dtot = dtot + d
         if np.linalg.norm(d) < 0.01:
             break
-        Jgd = scipy.interpolate.RectBivariateSpline(xcoords, ycoords, Jg)(
+        Jgd = scipy.interpolate.RectBivariateSpline(ycoords, xcoords, Jg)(
             np.arange(dtot[1], height + dtot[1]),
             np.arange(dtot[0], width + dtot[0]), grid=True)
         Jgdxd = scipy.interpolate.RectBivariateSpline(xcoords, ycoords, Jgdx)(
