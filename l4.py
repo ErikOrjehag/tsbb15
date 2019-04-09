@@ -73,7 +73,7 @@ noisy_mult[noisy_mult > 255] = 255
 noisy_img = noisy_add
 #noisy_img = noisy_mult
 
-Ig, Gdx, Gdy = image_gradient(noisy_img, ksize=5, sigma=3)
+Ig, Gdx, Gdy = image_gradient(noisy_img, ksize=3, sigma=3)
 T = estimate_T(Gdx, Gdy, window_size=np.array([3, 3]))
 D = D_from_T(T, m=10)
 
